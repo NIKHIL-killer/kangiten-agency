@@ -1,0 +1,241 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # NOVU - Notification Infrastructure
+  # ===========================================
+  novu:
+    image: novu/novu:latest
+    container_name: kangiten-novu
+    ports:
+      - "3000:3000"
+      - "4000:4000"
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - MONGO_URL=mongodb://mongo:27017/novu
+      - REDIS_URL=redis://redis:6379
+      - API_SECRET_KEY=${NOVU_API_SECRET_KEY:-your-secret-key-change-in-production}
+      - WEB_URL=http://localhost:3000
+      - NOVU_APPLICATION_IDENTIFIER=kangiten
+      - NOVU_ORGANIZATION_IDENTIFIER=kangiten
+      - SENTRY_DSN=${SENTRY_DSN}
+      - EMAIL_SENDER_ADDRESS=outreach@kangiten.com
+      - EMAIL_SENDER_NAME=Kangiten Agency
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=outreach@kangiten.com
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - novu-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===========================================
+  # LISTMONK - Newsletter & Mailing List
+  # ===========================================
+  listmonk:
+    image: listmonk/listmonk:latest
+    container_name: kangiten-listmonk
+    ports:
+      - "9000:9000"
+    environment:
+      - LISTMONK_DB_HOST=postgres
+      - LISTMONK_DB_PORT=5432
+      - LISTMONK_DB_USER=listmonk
+      - LISTMONK_DB_PASSWORD=${LISTMONK_DB_PASSWORD:-listmonk-password}
+      - LISTMONK_DB_NAME=listmonk
+      - LISTMONK_APP_ADDRESS=0.0.0.0:9000
+      - LISTMONK_APP_ADMIN_USERNAME=admin
+      - LISTMONK_APP_ADMIN_PASSWORD=${LISTMONK_ADMIN_PASSWORD:-admin123}
+      - LISTMONK_SMTP_HOST=${SMTP_HOST}
+      - LISTMONK_SMTP_PORT=${SMTP_PORT:-587}
+      - LISTMONK_SMTP_USERNAME=${SMTP_USER}
+      - LISTMONK_SMTP_PASSWORD=${SMTP_PASS}
+      - LISTMONK_SMTP_FROM_ADDRESS=outreach@kangiten.com
+      - LISTMONK_SMTP_FROM_NAME=Kangiten Agency
+    depends_on:
+      - postgres
+    volumes:
+      - listmonk-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===========================================
+  # TWENTY CRM - Modern CRM
+  # ===========================================
+  twenty:
+    image: twentycrm/twenty:latest
+    container_name: kangiten-twenty
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://twenty:twenty-password@postgres:5432/twenty
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=${TWENTY_SECRET_KEY:-your-secret-key-change-in-production}
+      - APP_URL=http://localhost:3002
+      - FRONTEND_URL=http://localhost:3002
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=outreach@kangiten.com
+      - SMTP_FROM_NAME=Kangiten Agency
+      - FILE_STORAGE_PATH=/data/files
+      - LOG_LEVEL=info
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - twenty-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===========================================
+  # POSTAL - Full Mail Server
+  # ===========================================
+  postal:
+    image: postal/postal:latest
+    container_name: kangiten-postal
+    ports:
+      - "25:25"
+      - "587:587"
+      - "465:465"
+      - "8080:8080"
+    environment:
+      - POSTAL_DB_HOST=postgres
+      - POSTAL_DB_PORT=5432
+      - POSTAL_DB_USER=postal
+      - POSTAL_DB_PASSWORD=${POSTAL_DB_PASSWORD:-postal-password}
+      - POSTAL_DB_NAME=postal
+      - POSTAL_RABBITMQ_HOST=rabbitmq
+      - POSTAL_RABBITMQ_PORT=5672
+      - POSTAL_RABBITMQ_USER=postal
+      - POSTAL_RABBITMQ_PASSWORD=${POSTAL_RABBITMQ_PASSWORD:-postal-password}
+      - POSTAL_WEB_HOST=localhost
+      - POSTAL_WEB_PORT=8080
+      - POSTAL_SMTP_HOST=localhost
+      - POSTAL_SMTP_PORT=25
+      - POSTAL_DNS_DOMAIN=kangiten.com
+      - POSTAL_DNS_MX=kangiten.com
+      - POSTAL_ADMIN_EMAIL=admin@kangiten.com
+      - POSTAL_ADMIN_PASSWORD=${POSTAL_ADMIN_PASSWORD:-admin123}
+    depends_on:
+      - postgres
+      - rabbitmq
+    volumes:
+      - postal-data:/postal/data
+    restart: unless-stopped
+
+  # ===========================================
+  # UPTIME KUMA - Website Monitoring
+  # ===========================================
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: kangiten-uptime
+    ports:
+      - "3003:3001"
+    volumes:
+      - uptime-data:/app/data
+    restart: unless-stopped
+
+  # ===========================================
+  # INFRASTRUCTURE
+  # ===========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: kangiten-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres-password}
+      - POSTGRES_MULTIPLE_DATABASES=novu,listmonk,twenty,postal
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo:
+    image: mongo:7-alpine
+    container_name: kangiten-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-mongo-password}
+      - MONGO_INITDB_DATABASE=novu
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: kangiten-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis-password}
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: kangiten-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=postal
+      - RABBITMQ_DEFAULT_PASS=${POSTAL_RABBITMQ_PASSWORD:-postal-password}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  novu-data:
+  listmonk-data:
+  twenty-data:
+  postal-data:
+  uptime-data:
+  postgres-data:
+  mongo-data:
+  redis-data:
+  rabbitmq-data:

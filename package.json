@@ -15,7 +15,10 @@
     "deploy:client": "tsx tools/deploy-client.ts",
     "generate:proposal": "tsx tools/generate-proposal.ts",
     "outreach:run": "tsx tools/outreach-runner.ts",
-    "video:render": "tsx tools/video-renderer.ts"
+    "video:render": "tsx tools/video-renderer.ts",
+    "lead:research": "tsx packages/ai-agents/src/workflows/lead-researcher.ts",
+    "video:personalized": "tsx tools/render-personalized-video.ts",
+    "outreach:full": "pnpm lead:research && pnpm video:personalized --csv apps/outreach-automation/leads.csv && pnpm outreach:run --csv apps/outreach-automation/leads.csv"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

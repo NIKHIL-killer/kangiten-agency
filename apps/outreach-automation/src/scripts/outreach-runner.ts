@@ -32,64 +32,89 @@ const OutreachConfigSchema = z.object({
 
 type OutreachConfig = z.infer<typeof OutreachConfigSchema>
 
+// Video link generator
+function getVideoLink(lead: Lead): string {
+  return `https://video.kangiten.com/${lead.business.toLowerCase().replace(/\s+/g, '-')}-outreach.mp4`
+}
+
+function getDemoLink(lead: Lead): string {
+  return `https://demo.kangiten.com/${lead.business.toLowerCase().replace(/\s+/g, '-')}`
+}
+
 // Email templates
 const EMAIL_TEMPLATES = {
-  initial: (lead: Lead) => ({
-    subject: `Quick question about ${lead.business}'s WhatsApp`,
-    html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 30px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: #22c55e; margin: 0; font-size: 24px;">Kangiten Agency</h1>
-            <p style="color: #94a3b8; margin: 8px 0 0;">AI WhatsApp Chatbots for Local Businesses</p>
-          </div>
+  initial: (lead: Lead) => {
+    const videoLink = getVideoLink(lead)
+    const demoLink = getDemoLink(lead)
 
-          <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
-            <p style="font-size: 16px;">Hi ${lead.name},</p>
-
-            <p>I noticed ${lead.business} is getting WhatsApp inquiries but might be missing messages after hours. We help local ${lead.category}s like yours automate responses, book appointments, and capture leads 24/7 on WhatsApp.</p>
-
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 24px 0;">
-              <h3 style="color: #166534; margin: 0 0 12px; font-size: 16px;">What you'd get:</h3>
-              <ul style="margin: 0; padding-left: 20px; color: #166534;">
-                <li>AI answers FAQs instantly (timings, services, prices)</li>
-                <li>Customers book appointments directly in WhatsApp</li>
-                <li>Lead capture with instant team notifications</li>
-                <li>Dashboard to see all conversations & analytics</li>
-                <li>Deployed on your existing WhatsApp number in 30 mins</li>
-              </ul>
+    return {
+      subject: `Quick question about ${lead.business}'s WhatsApp`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 30px; border-radius: 12px 12px 0 0;">
+              <h1 style="color: #22c55e; margin: 0; font-size: 24px;">Kangiten Agency</h1>
+              <p style="color: #94a3b8; margin: 8px 0 0;">AI WhatsApp Chatbots for Local Businesses</p>
             </div>
 
-            <p>We're offering a <strong>free first month</strong> to ${lead.category}s in ${lead.location} — no setup fees, cancel anytime.</p>
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+              <p style="font-size: 16px;">Hi ${lead.name},</p>
 
-            <p>Worth a 10-min call to see a live demo?</p>
+              <p>I noticed ${lead.business} is getting WhatsApp inquiries but might be missing messages after hours. We help local ${lead.category}s like yours automate responses, book appointments, and capture leads 24/7 on WhatsApp.</p>
 
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="https://calendly.com/kangiten/15min" style="background: #22c55e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Book a Quick Demo</a>
+              <!-- Personalized Video -->
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 24px 0; text-align: center;">
+                <p style="color: #166534; margin: 0 0 12px; font-size: 16px;">🎬 I made a 60-second video for you:</p>
+                <a href="${videoLink}" style="display: inline-block; background: #22c55e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                  Watch My Personalized Video
+                </a>
+                <p style="color: #166534; margin: 12px 0 0; font-size: 14px;">Shows exactly how ${lead.business} would work with our AI</p>
+              </div>
+
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 24px 0;">
+                <h3 style="color: #166534; margin: 0 0 12px; font-size: 16px;">What you'd get:</h3>
+                <ul style="margin: 0; padding-left: 20px; color: #166534;">
+                  <li>AI answers FAQs instantly (timings, services, prices)</li>
+                  <li>Customers book appointments directly in WhatsApp</li>
+                  <li>Lead capture with instant team notifications</li>
+                  <li>Dashboard to see all conversations & analytics</li>
+                  <li>Deployed on your existing WhatsApp number in 30 mins</li>
+                </ul>
+              </div>
+
+              <p>We're offering a <strong>free first month</strong> to ${lead.category}s in ${lead.location} — no setup fees, cancel anytime.</p>
+
+              <p>Worth a 10-min call to see a live demo?</p>
+
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${demoLink}" style="background: #22c55e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 10px;">Try Live Demo</a>
+                <a href="https://calendly.com/kangiten/15min" style="background: #0f172a; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Book a Call</a>
+              </div>
+
+              <p style="color: #64748b; font-size: 14px;">Or just reply to this email — I read every response.</p>
+
+              <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+
+              <p style="color: #94a3b8; font-size: 12px;">
+                — Team Kangiten<br>
+                <a href="https://kangiten.com" style="color: #22c55e;">kangiten.com</a> |
+                <a href="https://wa.me/919876543210" style="color: #22c55e;">WhatsApp Us</a>
+              </p>
             </div>
-
-            <p style="color: #64748b; font-size: 14px;">Or just reply to this email — I read every response.</p>
-
-            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
-
-            <p style="color: #94a3b8; font-size: 12px;">
-              — Team Kangiten<br>
-              <a href="https://kangiten.com" style="color: #22c55e;">kangiten.com</a> |
-              <a href="https://wa.me/919876543210" style="color: #22c55e;">WhatsApp Us</a>
-            </p>
-          </div>
-        </body>
-      </html>
-    `,
-    text: `
+          </body>
+        </html>
+      `,
+      text: `
 Hi ${lead.name},
 
 I noticed ${lead.business} is getting WhatsApp inquiries but might be missing messages after hours. We help local ${lead.category}s like yours automate responses, book appointments, and capture leads 24/7 on WhatsApp.
+
+🎬 I made a 60-second personalized video for you: ${videoLink}
 
 What you'd get:
 - AI answers FAQs instantly (timings, services, prices)
@@ -100,14 +125,16 @@ What you'd get:
 
 We're offering a free first month to ${lead.category}s in ${lead.location} — no setup fees, cancel anytime.
 
-Worth a 10-min call to see a live demo? Book at: https://calendly.com/kangiten/15min
+Try the live demo: ${demoLink}
+Book a call: https://calendly.com/kangiten/15min
 
 Or just reply to this email — I read every response.
 
 — Team Kangiten
 kangiten.com | WhatsApp: +91 98765 43210
-    `,
-  }),
+      `,
+    }
+  },
 
   followUp1: (lead: Lead) => ({
     subject: `Re: Quick question about ${lead.business}'s WhatsApp`,
