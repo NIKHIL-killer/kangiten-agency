@@ -1,0 +1,131 @@
+name: Agency Tools
+
+on:
+  workflow_dispatch:
+    inputs:
+      tool:
+        description: 'Tool to run'
+        required: true
+        type: choice
+        options:
+          - deploy-client
+          - generate-proposal
+          - outreach-runner
+          - video-renderer
+      client_id:
+        description: 'Client ID (for deploy-client)'
+        required: false
+        type: string
+      business_name:
+        description: 'Business name (for deploy-client/generate-proposal)'
+        required: false
+        type: string
+      business_type:
+        description: 'Business type (salon|clinic|gym|real-estate|restaurant|auto-repair)'
+        required: false
+        type: string
+      phone:
+        description: 'WhatsApp number (for deploy-client)'
+        required: false
+        type: string
+      plan:
+        description: 'Plan (starter|growth|scale)'
+        required: false
+        type: string
+        default: 'growth'
+      csv_file:
+        description: 'CSV file path (for outreach-runner)'
+        required: false
+        type: string
+      composition:
+        description: 'Video composition (kangiten-demo|kangiten-short)'
+        required: false
+        type: string
+
+jobs:
+  run-tool:
+    name: Run ${{ github.event.inputs.tool }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '9'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Run deploy-client
+        if: github.event.inputs.tool == 'deploy-client'
+        run: |
+          pnpm tsx tools/deploy-client.ts \
+            --client "${{ github.event.inputs.client_id }}" \
+            --name "${{ github.event.inputs.business_name }}" \
+            --type "${{ github.event.inputs.business_type }}" \
+            --phone "${{ github.event.inputs.phone }}" \
+            --plan "${{ github.event.inputs.plan }}"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          WHATSAPP_VERIFY_TOKEN: ${{ secrets.WHATSAPP_VERIFY_TOKEN }}
+          WHATSAPP_ACCESS_TOKEN: ${{ secrets.WHATSAPP_ACCESS_TOKEN }}
+          WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
+
+      - name: Run generate-proposal
+        if: github.event.inputs.tool == 'generate-proposal'
+        run: |
+          pnpm tsx tools/generate-proposal.ts \
+            --name "${{ github.event.inputs.business_name }}" \
+            --type "${{ github.event.inputs.business_type }}" \
+            --contact "${{ github.event.inputs.client_id }}" \
+            --plan "${{ github.event.inputs.plan }}"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Run outreach-runner
+        if: github.event.inputs.tool == 'outreach-runner'
+        run: |
+          pnpm tsx tools/outreach-runner.ts \
+            --csv "${{ github.event.inputs.csv_file || 'apps/outreach-automation/leads.csv' }}"
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOVU_API_KEY: ${{ secrets.NOVU_API_KEY }}
+          NOVU_SUB_ID: ${{ secrets.NOVU_SUB_ID }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          FROM_NAME: ${{ secrets.FROM_NAME }}
+
+      - name: Run video-renderer
+        if: github.event.inputs.tool == 'video-renderer'
+        run: |
+          pnpm tsx tools/video-renderer.ts \
+            --composition "${{ github.event.inputs.composition || 'kangiten-demo' }}"
+        env:
+          # No special env needed for rendering
+
+      - name: Upload generated files
+        uses: actions/upload-artifact@v4
+        with:
+          name: tool-output-${{ github.event.inputs.tool }}
+          path: |
+            *.md
+            *.mp4
+            *.csv
+          retention-days: 7

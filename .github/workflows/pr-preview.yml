@@ -1,0 +1,190 @@
+name: PR Preview Deployments
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main, master]
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+
+jobs:
+  # ===========================================
+  # BUILD FOR PREVIEW
+  # ===========================================
+  build-preview:
+    name: Build for Preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all apps
+        run: pnpm build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-build
+          path: |
+            apps/*/.next
+            apps/*/dist
+          retention-days: 1
+
+  # ===========================================
+  # DEPLOY PREVIEW - MARKETING
+  # ===========================================
+  preview-marketing:
+    name: Preview Marketing Site
+    runs-on: ubuntu-latest
+    needs: build-preview
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: preview-build
+          path: .
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Deploy Preview
+        id: deploy
+        run: |
+          cd apps/marketing-site
+          URL=$(vercel --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_TEAM_ID }} --yes 2>&1 | tail -1)
+          echo "preview_url=$URL" >> $GITHUB_OUTPUT
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+
+      - name: Comment preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🔗 **Marketing Site Preview:** ${{ steps.deploy.outputs.preview_url }}`
+            });
+
+  # ===========================================
+  # DEPLOY PREVIEW - DEMO CHATBOT
+  # ===========================================
+  preview-demo:
+    name: Preview Demo Chatbot
+    runs-on: ubuntu-latest
+    needs: build-preview
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: preview-build
+          path: .
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Deploy Preview
+        id: deploy
+        run: |
+          cd apps/demo-chatbot
+          URL=$(vercel --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_TEAM_ID }} --yes 2>&1 | tail -1)
+          echo "preview_url=$URL" >> $GITHUB_OUTPUT
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+
+      - name: Comment preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🤖 **Demo Chatbot Preview:** ${{ steps.deploy.outputs.preview_url }}/demo`
+            });
+
+  # ===========================================
+  # DEPLOY PREVIEW - CLIENT DASHBOARD
+  # ===========================================
+  preview-dashboard:
+    name: Preview Client Dashboard
+    runs-on: ubuntu-latest
+    needs: build-preview
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: preview-build
+          path: .
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Deploy Preview
+        id: deploy
+        run: |
+          cd apps/client-dashboard
+          URL=$(vercel --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_TEAM_ID }} --yes 2>&1 | tail -1)
+          echo "preview_url=$URL" >> $GITHUB_OUTPUT
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+
+      - name: Comment preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📊 **Client Dashboard Preview:** ${{ steps.deploy.outputs.preview_url }}/dashboard`
+            });
+
+  # ===========================================
+  # CLEANUP ON PR CLOSE
+  # ===========================================
+  cleanup-preview:
+    name: Cleanup Preview Deployments
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == false && github.event.action == 'closed'
+    needs: [preview-marketing, preview-demo, preview-dashboard]
+    steps:
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Remove preview deployments
+        run: |
+          # Vercel auto-cleans previews, but we can explicitly remove if needed
+          echo "Preview deployments will be auto-cleaned by Vercel"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
